@@ -170,8 +170,7 @@ export function NewAgreementForm({ signer }: { signer: CompanySigner }) {
               {F({ k: `items.${idx}.serial`, label: "Serial", children: <input value={it.serial} onChange={setI(idx, "serial")} /> })}
               {F({ k: `items.${idx}.year`, label: "Year", children: <input value={it.year} onChange={setI(idx, "year")} placeholder="e.g. 1991 or c1991" /> })}
               {F({ k: `items.${idx}.insuredValue`, label: "Insured Value (£)", children: <input inputMode="decimal" value={it.insuredValue} onChange={setI(idx, "insuredValue")} placeholder="Optional" /> })}
-              {F({ k: `items.${idx}.boxPapers`, label: "Box and papers", children: <input value={it.boxPapers} onChange={setI(idx, "boxPapers")} /> })}
-              {F({ k: `items.${idx}.accessories`, label: "Accessories", children: <input value={it.accessories} onChange={setI(idx, "accessories")} /> })}
+              {F({ k: `items.${idx}.boxPapers`, label: "Accessories", children: <input value={it.boxPapers} onChange={setI(idx, "boxPapers")} placeholder="e.g. box, papers, hang tag" /> })}
               {F({ k: `items.${idx}.disclosures`, label: "Note (optional)", children: <input value={it.disclosures} onChange={setI(idx, "disclosures")} placeholder="e.g. replaced crystal, service history" /> })}
             </div>
           </div>

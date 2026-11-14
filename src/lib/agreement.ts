@@ -255,8 +255,7 @@ export function buildAgreementHtml(a: Agreement, opts: BuildOptions): string {
         ${row("Reference", orDash(i.reference))}
         ${row("Serial number", orDash(i.serial))}
         ${row("Year", orDash(i.year))}
-        ${row("Box and papers", orDash(i.boxPapers))}
-        ${row("Accessories", orDash(i.accessories))}
+        ${row("Accessories", orDash([i.boxPapers, i.accessories].filter(Boolean).join(", ")))}
         ${row("Insured Value", i.insuredValue !== undefined ? e(formatMoney(i.insuredValue)) : "The Recommended Selling Price (clause 1.1)")}
         ${i.disclosures ? row("Note", multiline(i.disclosures)) : ""}
       </table>`,
@@ -267,7 +266,7 @@ export function buildAgreementHtml(a: Agreement, opts: BuildOptions): string {
     row("Commission", multiline(commissionWording(t))),
     row(
       "Initial listing price",
-      t.listingPrice !== undefined ? `${e(formatMoney(t.listingPrice))}.` : "To be notified in writing after delivery (clause 5.3).",
+      t.listingPrice !== undefined ? e(formatMoney(t.listingPrice)) : "To be notified in writing after delivery (clause 5.3).",
     ),
     t.minNetReturn !== undefined ? row("Minimum net return", e(formatMoney(t.minNetReturn))) : "",
     row("Initial period", `${t.periodDays} days from the Commencement Date, renewing monthly thereafter.`),

@@ -54,7 +54,7 @@ with sync_playwright() as p:
     fill("Telephone", "+44 7700 900000")
     fill("Address", "1 High Street, London")
     fill("Make", "Rolex"); fill("Model", "Datejust 36"); fill("Reference", "16234"); fill("Year", "c1991")
-    fill("Insured Value (£)", "8500"); fill("Box and papers", "Box, guarantee papers")
+    fill("Insured Value (£)", "8500"); fill("Accessories", "Box, guarantee papers")
     page.click("text=+ Add another watch")
     fill("Make", "Omega", 1); fill("Model", "Speedmaster Professional", 1); fill("Reference", "145.022", 1)
     page.click("button:has-text('Percentage with minimum return')")
