@@ -10,7 +10,7 @@ const CUSTOM_CSS = `
   #form_container { border-radius: 0 !important; }
 `;
 
-export function SigningBox({ src, email, doneUrl }: { src: string; email?: string; doneUrl: string }) {
+export function SigningBox({ src, email, doneUrl, host }: { src: string; email?: string; doneUrl: string; host?: string }) {
   const ref = useRef<HTMLElement | null>(null);
   const router = useRouter();
   const [failed, setFailed] = useState(false);
@@ -44,6 +44,7 @@ export function SigningBox({ src, email, doneUrl }: { src: string; email?: strin
     <docuseal-form
       ref={ref}
       data-src={src}
+      data-host={host}
       data-email={email}
       data-completed-redirect-url={doneUrl}
       data-with-title="false"

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { brand, ROLES } from "@/lib/brand.ts";
-import { getSubmitterBySlug, listSubmittersForSubmission, readSummary, signingSrc } from "@/lib/docuseal.ts";
+import { getSubmitterBySlug, listSubmittersForSubmission, readSummary, signingHost, signingSrc } from "@/lib/docuseal.ts";
 import { requireAdmin } from "@/lib/auth.ts";
 import { env } from "@/lib/env.ts";
 import { Logo, SiteFooter } from "@/components/Logo.tsx";
@@ -118,7 +118,7 @@ export default async function SignPage({ params }: { params: Promise<{ slug: str
         ) : (
           <>
             <div className="signing-frame">
-              <SigningBox src={signingSrc(slug)} email={signer.email ?? undefined} doneUrl={doneUrl} />
+              <SigningBox src={signingSrc(slug)} email={signer.email ?? undefined} doneUrl={doneUrl} host={signingHost()} />
             </div>
             <p className="fine">
               Read the full{" "}

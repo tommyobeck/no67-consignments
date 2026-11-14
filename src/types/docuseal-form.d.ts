@@ -3,6 +3,7 @@ import type { DetailedHTMLProps, HTMLAttributes } from "react";
 type DocusealFormAttributes = DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement> & {
   "data-src": string;
   "data-email"?: string;
+  "data-host"?: string;
   "data-completed-redirect-url"?: string;
   "data-with-title"?: string;
   "data-with-download-button"?: string;

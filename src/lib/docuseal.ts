@@ -157,6 +157,12 @@ export function signingSrc(slug: string): string {
   return `${env.docusealAppUrl()}/s/${encodeURIComponent(slug)}`;
 }
 
+/** The EU cloud needs its own host on the embedded signing box. */
+export function signingHost(): string | undefined {
+  const host = new URL(env.docusealAppUrl()).host;
+  return host === "docuseal.eu" ? "cdn.docuseal.eu" : undefined;
+}
+
 export function signPageUrl(slug: string): string {
   return `${env.appUrl()}/sign/${encodeURIComponent(slug)}`;
 }
