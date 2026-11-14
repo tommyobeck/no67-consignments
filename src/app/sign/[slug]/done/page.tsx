@@ -35,9 +35,7 @@ export default async function DonePage({ params }: { params: Promise<{ slug: str
               <p style={{ margin: 0, fontSize: 15, lineHeight: 1.6 }}>
                 {summary.presigned === "yes"
                   ? "You have signed the agreement, and it is now complete. A copy is on its way to you by email."
-                  : "You have signed the agreement. It will be countersigned shortly, and the completed copy will be sent to you by email."}{" "}
-                Please bring photo ID
-                when you deliver the watch, or reply to the email with a copy.
+                  : "You have signed the agreement. It will be countersigned shortly, and the completed copy will be sent to you by email."}
               </p>
             </>
           )}
