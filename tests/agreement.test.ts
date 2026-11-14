@@ -64,6 +64,15 @@ test("note sits under insured value; minimum net return shows when given", () =>
   assert.match(html, /Minimum net return<\/th><td>£7,000/);
 });
 
+test("pre-signed form has typed company signature and no company fields", () => {
+  const a = agreementSchema.parse(base);
+  const html = buildAgreementHtml(a, { ref: "C-TEST", companySigner: { name: "Tommy Zhao", title: "Director" }, presignedOn: new Date("2026-11-14T12:00:00Z") });
+  assert.match(html, /<div class="typed-sig">Tommy Zhao<\/div>/);
+  assert.match(html, /Date: 14\/11\/2026/);
+  assert.ok(!/role="Company"/.test(html));
+  assert.match(html, /<signature-field[^>]*role="Consignor"/);
+});
+
 test("preview mode has no DocuSeal field tags", () => {
   const a = agreementSchema.parse(base);
   const html = buildAgreementHtml(a, { ref: "PREVIEW", companySigner: { name: "Tommy Zhao", title: "Director" }, preview: true });

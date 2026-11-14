@@ -78,14 +78,16 @@ export type CreateArgs = {
   summary: AgreementSummary;
   consignor: { name: string; email: string };
   company: { name: string; email: string };
+  /** The company signature is already typed on the form, so only the consignor signs. */
+  presigned: boolean;
 };
 
 /**
  * Creates the signing request from the agreement HTML.
  * DocuSeal's own emails are switched off: this app sends branded emails instead.
- * Order is preserved, so the company can only countersign after the consignor has signed.
+ * When countersigning, order is preserved, so the company can only sign after the consignor.
  */
-export async function createAgreementSubmission(args: CreateArgs): Promise<{ submissionId: number; consignor: DsSubmitter; company: DsSubmitter }> {
+export async function createAgreementSubmission(args: CreateArgs): Promise<{ submissionId: number; consignor: DsSubmitter; company?: DsSubmitter }> {
   const result = await call<{ id?: number; submitters?: DsSubmitter[] } | DsSubmitter[]>("/submissions/html", {
     method: "POST",
     body: JSON.stringify({
@@ -100,16 +102,16 @@ export async function createAgreementSubmission(args: CreateArgs): Promise<{ sub
           email: args.consignor.email,
           external_id: `${args.ref}:consignor`,
           send_email: false,
-          metadata: { ...args.summary, kind: "consignor" },
+          metadata: { ...args.summary, kind: "consignor", ...(args.presigned ? { presigned: "yes" } : {}) },
         },
-        {
+        ...(args.presigned ? [] : [{
           role: ROLES.company,
           name: args.company.name,
           email: args.company.email,
           external_id: `${args.ref}:company`,
           send_email: false,
           metadata: { ref: args.ref, kind: "company" },
-        },
+        }]),
       ],
     }),
   });
@@ -117,7 +119,7 @@ export async function createAgreementSubmission(args: CreateArgs): Promise<{ sub
   const submitters = Array.isArray(result) ? result : result.submitters ?? [];
   const consignor = submitters.find((s) => s.role === ROLES.consignor);
   const company = submitters.find((s) => s.role === ROLES.company);
-  if (!consignor || !company) throw new DocusealError("DocuSeal did not return both signers.", 500);
+  if (!consignor || (!args.presigned && !company)) throw new DocusealError("DocuSeal did not return the expected signers.", 500);
   const submissionId = (!Array.isArray(result) && result.id) || consignor.submission_id;
   return { submissionId, consignor, company };
 }
@@ -178,5 +180,6 @@ export function readSummary(s: DsSubmitter): Partial<AgreementSummary> {
     commission: pick("commission"),
     period: pick("period"),
     insured: pick("insured"),
+    presigned: pick("presigned"),
   };
 }

@@ -40,18 +40,20 @@ export async function createAgreement(_prev: CreateState, formData: FormData): P
   const a = parsed.data;
   const ref = makeReference();
   const signer = env.companySigner();
-  const summary = summarise(a, ref);
+  const presigned = env.presign();
+  const summary: AgreementSummary = { ...summarise(a, ref), ...(presigned ? { presigned: "yes" } : {}) };
 
   let created;
   try {
     created = await createAgreementSubmission({
       name: submissionName(ref, a.consignor.name),
       documentName: `Consignment Form ${ref}`,
-      html: buildAgreementHtml(a, { ref, companySigner: signer }),
+      html: buildAgreementHtml(a, { ref, companySigner: signer, presignedOn: presigned ? new Date() : undefined }),
       ref,
       summary,
       consignor: { name: a.consignor.type === "company" ? a.consignor.signatoryName || a.consignor.name : a.consignor.name, email: a.consignor.email },
       company: { name: signer.name, email: signer.email },
+      presigned,
     });
   } catch (err) {
     console.error("[create] DocuSeal error", err);

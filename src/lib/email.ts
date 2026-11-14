@@ -82,7 +82,11 @@ export async function sendConsignorInvite(args: { to: string; summary: Agreement
       noteHtml +
       summaryTable(s) +
       button(args.signUrl, "Review and sign") +
-      para("Once you have signed, I will countersign and send you the completed copy. If anything needs changing, just reply to this email.") +
+      para(
+        s.presigned === "yes"
+          ? "I have already signed it, so once you sign, the completed copy will be sent to you straight away. If anything needs changing, just reply to this email."
+          : "Once you have signed, I will countersign and send you the completed copy. If anything needs changing, just reply to this email.",
+      ) +
       para(`Best wishes,<br>${e(args.signerName.split(" ")[0])}`),
   );
   const text = `Dear ${s.firstName},
@@ -93,7 +97,7 @@ ${args.note ? `\n${args.note}\n` : ""}
 Commission: ${s.commission}
 Initial period: ${s.period}
 
-Once you have signed, I will countersign and send you the completed copy.
+${s.presigned === "yes" ? "I have already signed it, so once you sign, the completed copy will be sent to you straight away." : "Once you have signed, I will countersign and send you the completed copy."}
 
 Best wishes,
 ${args.signerName.split(" ")[0]}`;

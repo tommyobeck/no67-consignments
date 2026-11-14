@@ -83,7 +83,15 @@ export default async function AgreementPage({
           <div className="fine">{signerStatus(consignor)}</div>
         </dd>
         <dt>Countersignature</dt>
-        <dd>{company?.completed_at ? `Signed ${when(company.completed_at)}` : consignorSigned ? "Ready for you" : "After the consignor signs"}</dd>
+        <dd>
+          {sum.presigned === "yes"
+            ? "Signed when sent"
+            : company?.completed_at
+              ? `Signed ${when(company.completed_at)}`
+              : consignorSigned
+                ? "Ready for you"
+                : "After the consignor signs"}
+        </dd>
         <dt>Created</dt>
         <dd>{when(sub.created_at)}</dd>
       </dl>

@@ -6,6 +6,7 @@
  */
 import { z } from "zod";
 import { brand, ROLES, SUBMISSION_PREFIX } from "./brand.ts";
+import { SIGNATURE_FONT_WOFF2_BASE64 } from "./signatureFont.ts";
 
 // ---------------------------------------------------------------------------
 // What you fill in
@@ -169,6 +170,8 @@ export type AgreementSummary = {
   commission: string;
   period: string;
   insured: string;
+  /** "yes" when the company signature was applied when the agreement was sent. */
+  presigned?: string;
 };
 
 export function summarise(a: Agreement, ref: string): AgreementSummary {
@@ -213,10 +216,16 @@ export type BuildOptions = {
   companySigner: CompanySigner;
   /** Preview mode replaces signature fields with placeholders, so the browser can show it. */
   preview?: boolean;
+  /** When set, the company signature is typed onto the form with this date, instead of a signing box. */
+  presignedOn?: Date;
 };
 
+export function formatDateGB(d: Date): string {
+  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Europe/London" });
+}
+
 export function buildAgreementHtml(a: Agreement, opts: BuildOptions): string {
-  const { ref, companySigner, preview } = opts;
+  const { ref, companySigner, preview, presignedOn } = opts;
   const c = a.consignor;
   const t = a.terms;
   const L = brand.legal;
@@ -274,6 +283,7 @@ export function buildAgreementHtml(a: Agreement, opts: BuildOptions): string {
 <meta charset="utf-8">
 <title>Consignment Form ${e(ref)}</title>
 <style>
+  ${presignedOn ? `@font-face { font-family: "No67 Signature"; src: url(data:font/woff2;base64,${SIGNATURE_FONT_WOFF2_BASE64}) format("woff2"); }` : ""}
   @page { size: A4; margin: 18mm 18mm 20mm; }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 10pt; line-height: 1.5; color: #1A1A18; }
@@ -297,6 +307,7 @@ export function buildAgreementHtml(a: Agreement, opts: BuildOptions): string {
   .sig-block { flex: 1; }
   .sig-label { font-size: 8pt; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; margin-bottom: 6px; }
   .sig-line { border-top: 1px solid #1A1A18; margin-top: 4px; padding-top: 4px; }
+  .typed-sig { height: 64px; display: flex; align-items: flex-end; padding-bottom: 6px; font-family: "No67 Signature", "Snell Roundhand", "Apple Chancery", "Brush Script MT", "Segoe Script", cursive; font-size: 38pt; line-height: 1; color: #1A1A18; }
   .sig-date { font-size: 8.5pt; color: #5F5B53; margin-top: 6px; }
   .field-placeholder { border: 1px dashed #B9B3A7; color: #8C8679; font-size: 8pt; display: flex; align-items: center; justify-content: center; }
   .field-placeholder.sig { width: 240px; height: 64px; }
@@ -341,9 +352,9 @@ export function buildAgreementHtml(a: Agreement, opts: BuildOptions): string {
     </div>
     <div class="sig-block">
       <div class="sig-label">Signed for ${e(L.entity)}</div>
-      ${sigField(ROLES.company, "Company")}
+      ${presignedOn ? `<div class="typed-sig">${e(companySigner.name)}</div>` : sigField(ROLES.company, "Company")}
       <div class="sig-line">${e(companySigner.name)}, ${e(companySigner.title)}</div>
-      <div class="sig-date">Date: ${dateField(ROLES.company, "Company")}</div>
+      <div class="sig-date">Date: ${presignedOn ? e(formatDateGB(presignedOn)) : dateField(ROLES.company, "Company")}</div>
     </div>
   </div>
 

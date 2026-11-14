@@ -37,6 +37,7 @@ export default async function SignPage({ params }: { params: Promise<{ slug: str
   const ref = summary.ref ?? "";
   const doneUrl = `/sign/${encodeURIComponent(slug)}/done`;
 
+  const presigned = summary.presigned === "yes";
   const waitingForConsignor = isCompany && consignor?.status !== "completed";
   const alreadySigned = signer.status === "completed";
   const declined = signer.status === "declined";
@@ -59,8 +60,9 @@ export default async function SignPage({ params }: { params: Promise<{ slug: str
           <li className={alreadySigned || isCompany ? "done" : "current"}>
             <span className="dot">1</span>Review and sign
           </li>
-          <li className={isCompany ? (alreadySigned ? "done" : "current") : ""}>
-            <span className="dot">2</span>Countersigned by {brand.name}
+          <li className={presigned || isCompany ? (presigned || alreadySigned ? "done" : "current") : ""}>
+            <span className="dot">2</span>
+            {presigned ? `Signed by ${brand.name}` : `Countersigned by ${brand.name}`}
           </li>
           <li className={alreadySigned && isCompany ? "done" : ""}>
             <span className="dot">3</span>Completed copy by email
@@ -72,8 +74,9 @@ export default async function SignPage({ params }: { params: Promise<{ slug: str
           <h1 className="display">{isCompany ? "Countersign the agreement" : "Your consignment agreement"}</h1>
           {!isCompany && (
             <p className="lede">
-              Please review the agreement below and sign at the end. Once you have signed, {env.companySigner().name.split(/\s+/)[0]} will countersign and you will both
-              receive the completed agreement by email.
+              {presigned
+                ? `Please review the agreement below and sign at the end. It has already been signed by ${env.companySigner().name.split(/\s+/)[0]}, so once you sign, you will both receive the completed agreement by email.`
+                : `Please review the agreement below and sign at the end. Once you have signed, ${env.companySigner().name.split(/\s+/)[0]} will countersign and you will both receive the completed agreement by email.`}
             </p>
           )}
         </section>
@@ -111,7 +114,9 @@ export default async function SignPage({ params }: { params: Promise<{ slug: str
           <div className="notice error">This agreement was declined. Please get in touch at {brand.contactEmail} if this was a mistake.</div>
         ) : alreadySigned ? (
           <div className="notice">
-            {isCompany ? "You have already countersigned this agreement." : "You have already signed this agreement. The completed copy will be sent to you by email once it has been countersigned."}
+            {isCompany ? "You have already countersigned this agreement." : presigned
+                ? "You have already signed this agreement. The completed copy has been sent to you by email."
+                : "You have already signed this agreement. The completed copy will be sent to you by email once it has been countersigned."}
           </div>
         ) : waitingForConsignor ? (
           <div className="notice">The consignor has not signed yet. You will get an email as soon as they do.</div>

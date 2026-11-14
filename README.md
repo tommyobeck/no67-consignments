@@ -6,9 +6,10 @@ Own-brand consignment agreements: you fill in a private form, the consignor sign
 
 1. **Private form** (`/admin/new`, password protected). Enter the consignor, the watches and the commercial terms. You can preview the Consignment Form before sending.
 2. **Send for signature.** The app builds the Consignment Form, creates a signing request in DocuSeal with two signers in order (Consignor, then Company), and emails the consignor a link to `/sign/…` on your own domain. DocuSeal's own emails are switched off.
-3. **Consignor signs** on the signing page. DocuSeal tells the app (webhook), and the app emails you a "Ready to countersign" link.
-4. **You countersign** (the countersigning page only works when you are signed in).
-5. **Completed.** The app emails the signed PDF and audit certificate to the consignor and to you.
+3. **Consignor signs** on the signing page. Your signature (your name, typed in a signature font, with the date) is already on the form when it is sent.
+4. **Completed.** DocuSeal tells the app (webhook), and the app emails the signed PDF and audit certificate to the consignor and to you.
+
+To countersign each agreement yourself instead, add the setting `COMPANY_PRESIGN=false`. The consignor then signs first, you get a "Ready to countersign" email, and the countersigning page only works when you are signed in.
 
 The lists of agreements (Awaiting signature, Signed) are read straight from DocuSeal, so there is no separate database to look after.
 

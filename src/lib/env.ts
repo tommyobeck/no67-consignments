@@ -30,6 +30,8 @@ export const env = {
     title: optional("COMPANY_SIGNER_TITLE", "Director"),
     email: required("COMPANY_SIGNER_EMAIL"),
   }),
+  /** On by default: your typed signature is on the form when it is sent. Set COMPANY_PRESIGN=false to countersign instead. */
+  presign: () => (process.env.COMPANY_PRESIGN ?? "true").trim().toLowerCase() !== "false",
   resendKey: () => process.env.RESEND_API_KEY?.trim() || "",
   emailFrom: () => required("EMAIL_FROM"),
   emailReplyTo: () => optional("EMAIL_REPLY_TO", ""),
