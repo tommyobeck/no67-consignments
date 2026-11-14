@@ -328,9 +328,8 @@ export function buildAgreementHtml(a: Agreement, opts: BuildOptions): string {
   <p style="margin: 0;">By signing this form, the Consignor:</p>
   <ol class="confirm" type="a">
     <li>accepts the ${e(brand.terms.title)} in their entirety and agrees that they and this form together constitute a binding Agreement with the Company;</li>
-    <li>represents that the information in this form is accurate, complete and not misleading;</li>
-    <li>gives the warranties in clause 9, including as to title, authenticity, disclosure and lawful source; and</li>
-    <li>acknowledges that the Company will verify the Consignor&rsquo;s identity and check each Consignment Item against The Watch Register before acceptance.</li>
+    <li>represents that the information in this form is accurate, complete and not misleading; and</li>
+    <li>gives the warranties in clause 9, including as to title, authenticity, disclosure and lawful source.</li>
   </ol>
 
   <div class="signatures">
