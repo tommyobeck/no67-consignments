@@ -126,8 +126,7 @@ export async function sendCompletedCopy(args: {
   const intro = args.forCompany
     ? para(`Consignment agreement ${e(s.ref ?? "")} with <strong>${e(s.consignorName ?? "")}</strong> is complete. The signed copy and audit certificate are attached.`)
     : para(`Dear ${e(s.firstName ?? "")},`) +
-      para(`Your consignment agreement is now signed by both of us. The completed copy is attached for your records.`) +
-      para("Please bring photo ID when you deliver the watch, or reply to this email with a copy. We will confirm in writing once the watch has been accepted, which starts the consignment period.");
+      para(`Your consignment agreement is now signed by both of us. The completed copy is attached for your records.`);
   const linkHtml = !args.pdf && args.downloadUrl ? button(args.downloadUrl, "Download the signed agreement") : "";
   const html = layout(intro + summaryTable(s) + linkHtml + (args.forCompany ? "" : para(`With thanks,<br>${e(firstNameOfSigner())}`)));
   const text = args.forCompany
@@ -135,8 +134,6 @@ export async function sendCompletedCopy(args: {
     : `Dear ${s.firstName ?? ""},
 
 Your consignment agreement is now signed by both of us. The completed copy is attached.${!args.pdf && args.downloadUrl ? `\n${args.downloadUrl}` : ""}
-
-Please bring photo ID when you deliver the watch, or reply with a copy. We will confirm in writing once the watch has been accepted.
 
 With thanks,
 ${firstNameOfSigner()}`;
