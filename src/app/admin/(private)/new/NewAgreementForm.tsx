@@ -50,12 +50,12 @@ export function NewAgreementForm({ signer }: { signer: CompanySigner }) {
   const [items, setItems] = useState<ItemDraft[]>([emptyItem()]);
   const [basis, setBasis] = useState<CommissionBasis>("percent");
   const [terms, setTerms] = useState({
-    percent: String(brand.defaults.commissionPercent),
+    rate: `${brand.defaults.commissionPercent}%`,
     amount: "",
     bespoke: "",
     periodDays: String(brand.defaults.periodDays),
     listingPrice: "",
-    preApprovedPrice: "",
+    minNetReturn: "",
     specialTerms: "",
   });
   const [note, setNote] = useState("");
@@ -79,19 +79,18 @@ export function NewAgreementForm({ signer }: { signer: CompanySigner }) {
   const err = (k: string) => (stillWrong.has(k) ? errors[k] : undefined);
 
   const wording = useMemo(() => {
-    const p = terms.percent.trim() === "" ? undefined : Number(terms.percent);
     const amt = terms.amount.trim() === "" ? undefined : Number(terms.amount.replace(/[£,\s]/g, ""));
     return commissionWording({
       basis,
-      percent: Number.isFinite(p as number) ? p : undefined,
+      rate: terms.rate,
       amount: Number.isFinite(amt as number) ? amt : undefined,
       bespoke: terms.bespoke || "Your own wording, exactly as typed.",
       periodDays: 0,
       listingPrice: undefined,
-      preApprovedPrice: undefined,
+      minNetReturn: undefined,
       specialTerms: "",
     });
-  }, [basis, terms.percent, terms.amount, terms.bespoke]);
+  }, [basis, terms.rate, terms.amount, terms.bespoke]);
 
   const previewHtml = useMemo(() => {
     if (!showPreview || !check.success) return "";
@@ -173,7 +172,7 @@ export function NewAgreementForm({ signer }: { signer: CompanySigner }) {
               {F({ k: `items.${idx}.insuredValue`, label: "Insured Value (£)", children: <input inputMode="decimal" value={it.insuredValue} onChange={setI(idx, "insuredValue")} placeholder="Optional" /> })}
               {F({ k: `items.${idx}.boxPapers`, label: "Box and papers", children: <input value={it.boxPapers} onChange={setI(idx, "boxPapers")} /> })}
               {F({ k: `items.${idx}.accessories`, label: "Accessories", children: <input value={it.accessories} onChange={setI(idx, "accessories")} /> })}
-              {F({ k: `items.${idx}.disclosures`, label: "Disclosed matters", children: <input value={it.disclosures} onChange={setI(idx, "disclosures")} placeholder="None known" /> })}
+              {F({ k: `items.${idx}.disclosures`, label: "Note (optional)", children: <input value={it.disclosures} onChange={setI(idx, "disclosures")} placeholder="e.g. replaced crystal, service history" /> })}
             </div>
           </div>
         ))}
@@ -194,7 +193,7 @@ export function NewAgreementForm({ signer }: { signer: CompanySigner }) {
         </div>
         <div className="grid-3">
           {(basis === "percent" || basis === "min") &&
-            F({ k: "terms.percent", label: "Commission (%)", children: <input inputMode="decimal" value={terms.percent} onChange={setT("percent")} /> })}
+            F({ k: "terms.rate", label: "Commission (e.g. 10% or 10% + VAT)", children: <input value={terms.rate} onChange={setT("rate")} /> })}
           {(basis === "net" || basis === "min") &&
             F({
               k: "terms.amount",
@@ -211,7 +210,7 @@ export function NewAgreementForm({ signer }: { signer: CompanySigner }) {
         <div className="grid-3">
           {F({ k: "terms.periodDays", label: `Initial period (days, min. ${brand.defaults.minPeriodDays})`, children: <input inputMode="numeric" value={terms.periodDays} onChange={setT("periodDays")} /> })}
           {F({ k: "terms.listingPrice", label: "Initial listing price (£, optional)", children: <input inputMode="decimal" value={terms.listingPrice} onChange={setT("listingPrice")} /> })}
-          {F({ k: "terms.preApprovedPrice", label: "Pre-approved price (£, optional)", children: <input inputMode="decimal" value={terms.preApprovedPrice} onChange={setT("preApprovedPrice")} /> })}
+          {F({ k: "terms.minNetReturn", label: "Minimum net return (£, optional)", children: <input inputMode="decimal" value={terms.minNetReturn} onChange={setT("minNetReturn")} /> })}
         </div>
         {F({ k: "terms.specialTerms", label: "Special terms (optional)", children: <textarea rows={2} value={terms.specialTerms} onChange={setT("specialTerms")} placeholder="None" /> })}
       </section>

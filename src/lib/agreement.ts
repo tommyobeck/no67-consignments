@@ -20,7 +20,6 @@ const optionalMoney = z.preprocess(
   toNumberOrUndefined,
   z.number({ error: "Enter an amount in pounds" }).positive("Enter an amount in pounds").optional(),
 );
-const optionalPercent = z.preprocess(toNumberOrUndefined, z.number({ error: "Enter a percentage" }).optional());
 
 export const itemSchema = z.object({
   make: text(80).min(1, "Make is required"),
@@ -51,20 +50,21 @@ export const agreementSchema = z
     items: z.array(itemSchema).min(1, "Add at least one watch").max(20),
     terms: z.object({
       basis: z.enum(COMMISSION_BASES),
-      percent: optionalPercent,
+      // Free text, so extras like "10% + VAT" can be added.
+      rate: text(120).default(""),
       amount: optionalMoney,
       bespoke: text(2000).default(""),
       periodDays: z.coerce.number().int().min(brand.defaults.minPeriodDays, `At least ${brand.defaults.minPeriodDays} days`).max(730),
       listingPrice: optionalMoney,
-      preApprovedPrice: optionalMoney,
+      minNetReturn: optionalMoney,
       specialTerms: text(3000).default(""),
     }),
     note: text(1500).default(""),
   })
   .superRefine((v, ctx) => {
     const t = v.terms;
-    if ((t.basis === "percent" || t.basis === "min") && !(t.percent !== undefined && t.percent > 0 && t.percent < 100)) {
-      ctx.addIssue({ code: "custom", path: ["terms", "percent"], message: "Enter a percentage between 0 and 100" });
+    if ((t.basis === "percent" || t.basis === "min") && !/\d/.test(t.rate)) {
+      ctx.addIssue({ code: "custom", path: ["terms", "rate"], message: "Enter the commission, for example 10% or 10% + VAT" });
     }
     if ((t.basis === "net" || t.basis === "min") && t.amount === undefined) {
       ctx.addIssue({ code: "custom", path: ["terms", "amount"], message: "Enter an amount in pounds" });
@@ -91,20 +91,28 @@ export function formatMoney(value: number | undefined): string {
   return "£" + value.toLocaleString("en-GB", { minimumFractionDigits: hasPence ? 2 : 0, maximumFractionDigits: 2 });
 }
 
-function pct(value: number | undefined): string {
-  if (value === undefined) return "[X]%";
-  return `${Number(value.toFixed(2))}%`;
+/** "10" becomes "10%"; anything with words or symbols (e.g. "10% + VAT") is kept as typed. */
+function pct(rate: string | undefined): string {
+  const r = (rate ?? "").trim();
+  if (!r) return "[X]%";
+  return /^\d+(\.\d+)?$/.test(r) ? `${r}%` : r;
+}
+
+/** "10%" reads "10% of the Selling Price"; "10% + VAT" reads "10% + VAT, calculated on the Selling Price". */
+function rateOn(rate: string | undefined, price: string): string {
+  const r = pct(rate);
+  return /^\d+(\.\d+)?%$/.test(r) || r === "[X]%" ? `${r} of the ${price}` : `${r}, calculated on the ${price}`;
 }
 
 /** The sentence that appears against "Commission" on the form. */
 export function commissionWording(t: Agreement["terms"]): string {
   switch (t.basis) {
     case "percent":
-      return `${pct(t.percent)} of the Selling Price.`;
+      return `${rateOn(t.rate, "Selling Price")}.`;
     case "net":
       return `The difference between the Selling Price and an agreed net price of ${formatMoney(t.amount)} payable to the Consignor.`;
     case "min":
-      return `${pct(t.percent)} of the Selling Price, reduced where necessary so that the Consignor Price is not less than ${formatMoney(t.amount)} before any Servicing Expenses.`;
+      return `${rateOn(t.rate, "Selling Price")}, reduced where necessary so that the Consignor Price is not less than ${formatMoney(t.amount)} before any Servicing Expenses.`;
     case "bespoke":
       return t.bespoke;
   }
@@ -114,11 +122,11 @@ export function commissionWording(t: Agreement["terms"]): string {
 export function commissionShort(t: Agreement["terms"]): string {
   switch (t.basis) {
     case "percent":
-      return `${pct(t.percent)} of the selling price`;
+      return rateOn(t.rate, "selling price");
     case "net":
       return `Net price to you of ${formatMoney(t.amount)}`;
     case "min":
-      return `${pct(t.percent)} of the selling price, minimum return ${formatMoney(t.amount)}`;
+      return `${rateOn(t.rate, "selling price")}, minimum return ${formatMoney(t.amount)}`;
     case "bespoke":
       return "As set out in the agreement";
   }
@@ -224,7 +232,6 @@ export function buildAgreementHtml(a: Agreement, opts: BuildOptions): string {
 
   const consignorRows = [
     row("Name", e(c.name)),
-    row("Consigning as", c.type === "company" ? "A company or other business" : "A private individual"),
     c.type === "company" ? row("Signatory and position", e([c.signatoryName, c.signatoryRole].filter(Boolean).join(", "))) : "",
     row("Address", orDash(c.address)),
     row("Email", e(c.email)),
@@ -235,14 +242,14 @@ export function buildAgreementHtml(a: Agreement, opts: BuildOptions): string {
     .map(
       (i, idx) => `
       <table class="kv item">
-        <tr class="item-head"><th>Item ${idx + 1}</th><td><strong>${e(itemTitle(i))}</strong></td></tr>
+        <tr class="item-head"><th>Watch ${idx + 1}</th><td><strong>${e(itemTitle(i))}</strong></td></tr>
         ${row("Reference", orDash(i.reference))}
         ${row("Serial number", orDash(i.serial))}
         ${row("Year", orDash(i.year))}
         ${row("Box and papers", orDash(i.boxPapers))}
         ${row("Accessories", orDash(i.accessories))}
-        ${row("Disclosed matters", i.disclosures ? multiline(i.disclosures) : "None known")}
         ${row("Insured Value", i.insuredValue !== undefined ? e(formatMoney(i.insuredValue)) : "The Recommended Selling Price (clause 1.1)")}
+        ${i.disclosures ? row("Note", multiline(i.disclosures)) : ""}
       </table>`,
     )
     .join("");
@@ -253,14 +260,8 @@ export function buildAgreementHtml(a: Agreement, opts: BuildOptions): string {
       "Initial listing price",
       t.listingPrice !== undefined ? `${e(formatMoney(t.listingPrice))}.` : "To be notified in writing after delivery (clause 5.3).",
     ),
-    row(
-      "Pre-approved price",
-      t.preApprovedPrice !== undefined
-        ? `The Company may accept any offer at or above ${e(formatMoney(t.preApprovedPrice))} without further reference to the Consignor (clause 5.4).`
-        : "None. All offers will be referred to the Consignor (clause 5.4).",
-    ),
+    t.minNetReturn !== undefined ? row("Minimum net return", e(formatMoney(t.minNetReturn))) : "",
     row("Initial period", `${t.periodDays} days from the Commencement Date, renewing monthly thereafter.`),
-    row("Early return fee", `${e(formatMoney(brand.defaults.earlyReturnFee))} per Consignment Item, as set out in clause 3.3.`),
     row("Special terms", t.specialTerms ? multiline(t.specialTerms) : "None."),
   ].join("");
 
@@ -291,7 +292,8 @@ export function buildAgreementHtml(a: Agreement, opts: BuildOptions): string {
   .note { font-size: 8pt; color: #5F5B53; margin: 6px 0 0; }
   ol.confirm { margin: 6px 0 0; padding-left: 18px; }
   ol.confirm li { margin-bottom: 3px; }
-  .signatures { display: flex; gap: 28px; margin-top: 26px; page-break-inside: avoid; }
+  .keep-together { page-break-inside: avoid; break-inside: avoid; }
+  .signatures { display: flex; gap: 28px; margin-top: 26px; page-break-inside: avoid; break-inside: avoid; }
   .sig-block { flex: 1; }
   .sig-label { font-size: 8pt; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; margin-bottom: 6px; }
   .sig-line { border-top: 1px solid #1A1A18; margin-top: 4px; padding-top: 4px; }
@@ -309,7 +311,7 @@ export function buildAgreementHtml(a: Agreement, opts: BuildOptions): string {
   </div>
 
   <h1>Consignment Form</h1>
-  <p class="intro">Between <strong>${e(L.entity)}</strong>, trading as ${e(L.tradingAs)} (company number ${e(L.companyNumber)}, registered office ${e(L.registeredOffice)}) (the &ldquo;Company&rdquo;), and the Consignor named below. This form refers to and incorporates the Company&rsquo;s ${e(brand.terms.title)} (version ${e(brand.terms.version)}), available at ${e(brand.terms.url)}. Capitalised words have the meanings given there.</p>
+  <p class="intro">Between <strong>${e(L.entity)}</strong>, trading as ${e(L.tradingAs)} (company number ${e(L.companyNumber)}, registered office ${e(L.registeredOffice)}) (the &ldquo;Company&rdquo;), and the Consignor named below. This form refers to and incorporates the Company&rsquo;s ${e(brand.terms.title)} (version ${e(brand.terms.version)}), available at ${e(brand.terms.url)}.</p>
 
   <h2>1. The Consignor</h2>
   <table class="kv">${consignorRows}</table>
@@ -321,6 +323,7 @@ export function buildAgreementHtml(a: Agreement, opts: BuildOptions): string {
   <h2>3. Commercial Terms</h2>
   <table class="kv">${termsRows}</table>
 
+  <div class="keep-together">
   <h2>4. Consignor&rsquo;s confirmation</h2>
   <p style="margin: 0;">By signing this form, the Consignor:</p>
   <ol class="confirm" type="a">
@@ -343,6 +346,8 @@ export function buildAgreementHtml(a: Agreement, opts: BuildOptions): string {
       <div class="sig-line">${e(companySigner.name)}, ${e(companySigner.title)}</div>
       <div class="sig-date">Date: ${dateField(ROLES.company, "Company")}</div>
     </div>
+  </div>
+
   </div>
 
   <div class="foot">${e(L.tradingAs)} is a trading name of ${e(L.entity)}, registered in England and Wales, company number ${e(L.companyNumber)}. Registered office: ${e(L.registeredOffice)}.</div>

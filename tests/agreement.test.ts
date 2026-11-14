@@ -5,7 +5,7 @@ import { agreementSchema, buildAgreementHtml, commissionWording, makeReference, 
 const base = {
   consignor: { type: "individual", name: "James Carter", email: "James@Example.com ", phone: "", address: "1 High St" },
   items: [{ make: "Rolex", model: "Datejust 36", reference: "16234", serial: "", year: "c1991", insuredValue: "8,500" }],
-  terms: { basis: "percent", percent: "10", periodDays: "60" },
+  terms: { basis: "percent", rate: "10", periodDays: "60" },
 };
 
 test("valid input parses and normalises", () => {
@@ -22,7 +22,7 @@ test("period under 30 days is rejected", () => {
 });
 
 test("minimum return needs both percent and amount", () => {
-  const r = agreementSchema.safeParse({ ...base, terms: { basis: "min", percent: "10", periodDays: "60" } });
+  const r = agreementSchema.safeParse({ ...base, terms: { basis: "min", rate: "10%", periodDays: "60" } });
   assert.equal(r.success, false);
   assert.ok(!r.success && r.error.issues.some((i) => i.path.join(".") === "terms.amount"));
 });
@@ -33,11 +33,12 @@ test("company consignor needs a signatory", () => {
 });
 
 test("commission wording for each basis", () => {
-  const t = { periodDays: 60, bespoke: "", specialTerms: "", listingPrice: undefined, preApprovedPrice: undefined };
-  assert.equal(commissionWording({ ...t, basis: "percent", percent: 10, amount: undefined }), "10% of the Selling Price.");
-  assert.match(commissionWording({ ...t, basis: "net", percent: undefined, amount: 9000 }), /net price of £9,000 payable/);
-  assert.match(commissionWording({ ...t, basis: "min", percent: 12.5, amount: 7500.5 }), /^12\.5% .* not less than £7,500\.50 /);
-  assert.equal(commissionWording({ ...t, basis: "bespoke", percent: undefined, amount: undefined, bespoke: "Flat £500." }), "Flat £500.");
+  const t = { periodDays: 60, bespoke: "", specialTerms: "", listingPrice: undefined, minNetReturn: undefined, amount: undefined };
+  assert.equal(commissionWording({ ...t, basis: "percent", rate: "10" }), "10% of the Selling Price.");
+  assert.equal(commissionWording({ ...t, basis: "percent", rate: "10% + VAT" }), "10% + VAT, calculated on the Selling Price.");
+  assert.match(commissionWording({ ...t, basis: "net", rate: "", amount: 9000 }), /net price of £9,000 payable/);
+  assert.match(commissionWording({ ...t, basis: "min", rate: "12.5%", amount: 7500.5 }), /^12\.5% of the Selling Price, .* not less than £7,500\.50 /);
+  assert.equal(commissionWording({ ...t, basis: "bespoke", rate: "", bespoke: "Flat £500." }), "Flat £500.");
 });
 
 test("HTML has both signature roles and escapes input", () => {
@@ -52,6 +53,15 @@ test("HTML has both signature roles and escapes input", () => {
   assert.match(html, /60 days from the Commencement Date/);
   assert.match(html, /£8,500/);
   assert.ok(!/right to cancel/i.test(html), "cancellation notice was removed on request");
+  assert.ok(!/Consigning as|Early return fee|Pre-approved|Capitalised words|Disclosed matters/.test(html), "lines removed on request");
+  assert.match(html, /<th>Watch 1<\/th>/);
+});
+
+test("note sits under insured value; minimum net return shows when given", () => {
+  const a = agreementSchema.parse({ ...base, items: [{ ...base.items[0], disclosures: "Replaced crystal" }], terms: { ...base.terms, minNetReturn: "7,000" } });
+  const html = buildAgreementHtml(a, { ref: "C-TEST", companySigner: { name: "Tommy Zhao", title: "Director" } });
+  assert.ok(html.indexOf("Insured Value") < html.indexOf("<th>Note</th>"));
+  assert.match(html, /Minimum net return<\/th><td>£7,000/);
 });
 
 test("preview mode has no DocuSeal field tags", () => {
