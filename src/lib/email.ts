@@ -91,7 +91,7 @@ export async function sendConsignorInvite(args: { to: string; summary: Agreement
   );
   const text = `Dear ${s.firstName},
 
-Your consignment agreement for the ${s.watch} is ready to review and sign:
+Your consignment agreement for ${s.watch} is ready to review and sign:
 ${args.signUrl}
 ${args.note ? `\n${args.note}\n` : ""}
 Commission: ${s.commission}
@@ -101,7 +101,7 @@ ${s.presigned === "yes" ? "I have already signed it, so once you sign, the compl
 
 Best wishes,
 ${args.signerName.split(" ")[0]}`;
-  return send(args.to, `Your consignment agreement for the ${s.watch}`, html, text);
+  return send(args.to, `Your consignment agreement for ${s.watch}`, html, text);
 }
 
 export async function sendCountersignRequest(args: { to: string; summary: Partial<AgreementSummary>; signUrl: string; adminUrl: string }): Promise<SendResult> {
