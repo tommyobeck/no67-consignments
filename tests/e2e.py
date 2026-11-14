@@ -128,7 +128,7 @@ with sync_playwright() as p:
 
     emails = open("/tmp/mock-out/emails.log").read()
     print(emails)
-    check("invite email sent", "subject=Your consignment agreement for the 2 watches" in emails)
+    check("invite email sent", "subject=Your consignment agreement for 2 watches" in emails)
     check("countersign email sent", "Ready to countersign" in emails)
     check("completed copies with PDF attached", emails.count("(signed).pdf") == 2)
 
