@@ -10,7 +10,7 @@ export default async function PrivateLayout({ children }: { children: React.Reac
   return (
     <>
       <header className="admin-header">
-        <Logo subline="consignments" href="/admin" />
+        <Logo subline="documents" href="/admin" />
         <Suspense fallback={null}>
           <AdminNav />
         </Suspense>

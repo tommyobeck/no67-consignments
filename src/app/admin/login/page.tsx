@@ -11,7 +11,7 @@ export default async function LoginPage() {
   if (await isSignedIn()) redirect("/admin");
   return (
     <main className="login">
-      <Logo subline="consignments" />
+      <Logo subline="documents" />
       <LoginForm />
     </main>
   );
