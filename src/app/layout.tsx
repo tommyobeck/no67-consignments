@@ -3,7 +3,7 @@ import "./globals.css";
 import { brand } from "@/lib/brand.ts";
 
 export const metadata: Metadata = {
-  title: { default: `Consignment · ${brand.fullName}`, template: `%s · ${brand.fullName}` },
+  title: { default: `Documents · ${brand.fullName}`, template: `%s · ${brand.fullName}` },
   robots: { index: false, follow: false },
 };
 
