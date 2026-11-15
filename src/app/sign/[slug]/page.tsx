@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { brand, ROLES } from "@/lib/brand.ts";
-import { getSubmitterBySlug, listSubmittersForSubmission, readSummary, signingHost, signingSrc } from "@/lib/docuseal.ts";
+import { brand, DOC_TYPES, ROLES } from "@/lib/brand.ts";
+import { getSubmitterBySlug, listSubmittersForSubmission, partySigner, readSummary, signingHost, signingSrc } from "@/lib/docuseal.ts";
 import { requireAdmin } from "@/lib/auth.ts";
 import { env } from "@/lib/env.ts";
 import { Logo, SiteFooter } from "@/components/Logo.tsx";
@@ -27,14 +27,16 @@ export default async function SignPage({ params }: { params: Promise<{ slug: str
   const isCompany = signer.role === ROLES.company;
   if (isCompany) await requireAdmin(); // only you can countersign
 
-  // The consignor's signer carries the summary; for the company page, look it up.
+  // The consignor's or seller's signer carries the summary; for the company page, look it up.
   let consignor = isCompany ? null : signer;
   if (isCompany) {
     const all = await listSubmittersForSubmission(signer.submission_id);
-    consignor = all.find((s) => s.role === ROLES.consignor) ?? null;
+    consignor = partySigner(all) ?? null;
   }
   const summary = consignor ? readSummary(consignor) : {};
   const ref = summary.ref ?? "";
+  const T = DOC_TYPES[summary.docType ?? "consignment"];
+  const firstName = env.companySigner().name.split(/\s+/)[0];
   const doneUrl = `/sign/${encodeURIComponent(slug)}/done`;
 
   const presigned = summary.presigned === "yes";
@@ -45,7 +47,10 @@ export default async function SignPage({ params }: { params: Promise<{ slug: str
   return (
     <>
       <div className="topbar">
-        <span>Consignment agreement{ref ? ` · Ref. ${ref}` : ""}</span>
+        <span>
+          {T.heading}
+          {ref ? ` · Ref. ${ref}` : ""}
+        </span>
         <span>
           <LockIcon />
           Secure signing
@@ -71,17 +76,17 @@ export default async function SignPage({ params }: { params: Promise<{ slug: str
 
         <section style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {summary.consignorName && <p className="eyebrow">{isCompany ? `Countersign · ${summary.consignorName}` : `For ${summary.consignorName}`}</p>}
-          <h1 className="display">{isCompany ? "Countersign the agreement" : "Your consignment agreement"}</h1>
+          <h1 className="display">{isCompany ? `Countersign the ${T.label}` : `Your ${T.label}`}</h1>
           {!isCompany && (
             <p className="lede">
               {presigned
-                ? `Please review the agreement below and sign at the end. It has already been signed by ${env.companySigner().name.split(/\s+/)[0]}, so once you sign, you will both receive the completed agreement by email.`
-                : `Please review the agreement below and sign at the end. Once you have signed, ${env.companySigner().name.split(/\s+/)[0]} will countersign and you will both receive the completed agreement by email.`}
+                ? `Please review the ${T.label} below and sign at the end. It has already been signed by ${firstName}, so once you sign, you will both receive the completed copy by email.`
+                : `Please review the ${T.label} below and sign at the end. Once you have signed, ${firstName} will countersign and you will both receive the completed copy by email.`}
             </p>
           )}
         </section>
 
-        {(summary.watch || summary.commission) && (
+        {(summary.watch || (summary.facts ?? []).length > 0) && (
           <section aria-label="Summary" className="summary-grid">
             {summary.watch && (
               <div>
@@ -89,49 +94,43 @@ export default async function SignPage({ params }: { params: Promise<{ slug: str
                 <span className="v">{summary.watch}</span>
               </div>
             )}
-            {summary.commission && (
-              <div>
-                <span className="k">Commission</span>
-                <span className="v">{summary.commission}</span>
+            {(summary.facts ?? []).map(([k, v]) => (
+              <div key={k}>
+                <span className="k">{k}</span>
+                <span className="v">{v}</span>
               </div>
-            )}
-            {summary.period && (
-              <div>
-                <span className="k">Initial period</span>
-                <span className="v">{summary.period}</span>
-              </div>
-            )}
-            {summary.insured && (
-              <div>
-                <span className="k">Insured value</span>
-                <span className="v">{summary.insured}</span>
-              </div>
-            )}
+            ))}
           </section>
         )}
 
         {declined ? (
-          <div className="notice error">This agreement was declined. Please get in touch at {brand.contactEmail} if this was a mistake.</div>
+          <div className="notice error">This {T.label} was declined. Please get in touch at {brand.contactEmail} if this was a mistake.</div>
         ) : alreadySigned ? (
           <div className="notice">
-            {isCompany ? "You have already countersigned this agreement." : presigned
-                ? "You have already signed this agreement. The completed copy has been sent to you by email."
-                : "You have already signed this agreement. The completed copy will be sent to you by email once it has been countersigned."}
+            {isCompany
+              ? `You have already countersigned this ${T.label}.`
+              : presigned
+                ? `You have already signed this ${T.label}. The completed copy has been sent to you by email.`
+                : `You have already signed this ${T.label}. The completed copy will be sent to you by email once it has been countersigned.`}
           </div>
         ) : waitingForConsignor ? (
-          <div className="notice">The consignor has not signed yet. You will get an email as soon as they do.</div>
+          <div className="notice">The {T.partyNoun.toLowerCase()} has not signed yet. You will get an email as soon as they do.</div>
         ) : (
           <>
             <div className="signing-frame">
               <SigningBox src={signingSrc(slug)} email={signer.email ?? undefined} doneUrl={doneUrl} host={signingHost()} />
             </div>
             <p className="fine">
-              Read the full{" "}
-              <a href={brand.terms.url} target="_blank" rel="noreferrer">
-                {brand.terms.title}
-              </a>{" "}
-              (version {brand.terms.version}). Your email address and the time of signing are recorded in a secure audit certificate attached to the completed
-              agreement.
+              {T === DOC_TYPES.consignment && (
+                <>
+                  Read the full{" "}
+                  <a href={brand.terms.url} target="_blank" rel="noreferrer">
+                    {brand.terms.title}
+                  </a>{" "}
+                  (version {brand.terms.version}).{" "}
+                </>
+              )}
+              Your email address and the time of signing are recorded in a secure audit certificate attached to the completed copy.
             </p>
           </>
         )}

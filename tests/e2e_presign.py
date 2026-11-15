@@ -42,7 +42,7 @@ with sync_playwright() as p:
     check("no countersign email", "Ready to countersign" not in emails)
     check("both get the signed PDF", emails.count("(signed).pdf") == 2)
     inv = open("/tmp/mock-out/email-1.html").read()
-    check("invite says already signed", "I have already signed it" in inv)
+    check("invite has the short wording", "If anything needs changing" in inv and "two minutes" not in inv)
     pg.goto(f"{APP}/sign/{slug}/done")
     check("thank-you says complete", "now complete" in pg.inner_text("main"))
     b.close()

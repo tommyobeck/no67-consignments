@@ -1,7 +1,7 @@
 import "server-only";
 import { env } from "./env.ts";
-import { ROLES, SUBMISSION_PREFIX } from "./brand.ts";
-import type { AgreementSummary } from "./agreement.ts";
+import { DOC_TYPES, ROLES, isDocType, isOurSubmissionName, type DocType } from "./brand.ts";
+import type { DocSummary } from "./document.ts";
 
 // Only the fields this app uses. Full reference: https://www.docuseal.com/docs/api
 export type SubmitterStatus = "completed" | "declined" | "opened" | "sent" | "awaiting";
@@ -71,23 +71,26 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export type CreateArgs = {
+  docType: DocType;
   name: string;
   html: string;
   documentName: string;
   ref: string;
-  summary: AgreementSummary;
-  consignor: { name: string; email: string };
+  summary: DocSummary;
+  party: { name: string; email: string };
   company: { name: string; email: string };
-  /** The company signature is already typed on the form, so only the consignor signs. */
+  /** The company signature is already typed on the document, so only the other party signs. */
   presigned: boolean;
 };
 
 /**
- * Creates the signing request from the agreement HTML.
+ * Creates the signing request from the document HTML.
  * DocuSeal's own emails are switched off: this app sends branded emails instead.
- * When countersigning, order is preserved, so the company can only sign after the consignor.
+ * When countersigning, order is preserved, so the company can only sign after the other party.
  */
-export async function createAgreementSubmission(args: CreateArgs): Promise<{ submissionId: number; consignor: DsSubmitter; company?: DsSubmitter }> {
+export async function createAgreementSubmission(args: CreateArgs): Promise<{ submissionId: number; party: DsSubmitter; company?: DsSubmitter }> {
+  const partyRole = DOC_TYPES[args.docType].partyRole;
+  const { facts, ...rest } = args.summary;
   const result = await call<{ id?: number; submitters?: DsSubmitter[] } | DsSubmitter[]>("/submissions/html", {
     method: "POST",
     body: JSON.stringify({
@@ -97,31 +100,40 @@ export async function createAgreementSubmission(args: CreateArgs): Promise<{ sub
       documents: [{ name: args.documentName, html: args.html, size: "A4" }],
       submitters: [
         {
-          role: ROLES.consignor,
-          name: args.consignor.name,
-          email: args.consignor.email,
-          external_id: `${args.ref}:consignor`,
+          role: partyRole,
+          name: args.party.name,
+          email: args.party.email,
+          external_id: `${args.ref}:party`,
           send_email: false,
-          metadata: { ...args.summary, kind: "consignor", ...(args.presigned ? { presigned: "yes" } : {}) },
+          metadata: { ...rest, facts: JSON.stringify(facts), kind: "party", ...(args.presigned ? { presigned: "yes" } : {}) },
         },
-        ...(args.presigned ? [] : [{
-          role: ROLES.company,
-          name: args.company.name,
-          email: args.company.email,
-          external_id: `${args.ref}:company`,
-          send_email: false,
-          metadata: { ref: args.ref, kind: "company" },
-        }]),
+        ...(args.presigned
+          ? []
+          : [
+              {
+                role: ROLES.company,
+                name: args.company.name,
+                email: args.company.email,
+                external_id: `${args.ref}:company`,
+                send_email: false,
+                metadata: { ref: args.ref, docType: args.docType, kind: "company" },
+              },
+            ]),
       ],
     }),
   });
   // The API has returned both shapes over time: an object with submitters, or a bare list.
   const submitters = Array.isArray(result) ? result : result.submitters ?? [];
-  const consignor = submitters.find((s) => s.role === ROLES.consignor);
+  const party = submitters.find((s) => s.role === partyRole);
   const company = submitters.find((s) => s.role === ROLES.company);
-  if (!consignor || (!args.presigned && !company)) throw new DocusealError("DocuSeal did not return the expected signers.", 500);
-  const submissionId = (!Array.isArray(result) && result.id) || consignor.submission_id;
-  return { submissionId, consignor, company };
+  if (!party || (!args.presigned && !company)) throw new DocusealError("DocuSeal did not return the expected signers.", 500);
+  const submissionId = (!Array.isArray(result) && result.id) || party.submission_id;
+  return { submissionId, party, company };
+}
+
+/** The consignor or seller: whoever signs that is not the company. */
+export function partySigner(submitters: DsSubmitter[]): DsSubmitter | undefined {
+  return submitters.find((s) => s.role !== ROLES.company);
 }
 
 export async function getSubmission(id: number): Promise<DsSubmission> {
@@ -132,7 +144,7 @@ export async function listAgreements(status?: SubmissionStatus): Promise<DsSubmi
   const params = new URLSearchParams({ limit: "100" });
   if (status) params.set("status", status);
   const out = await call<{ data: DsSubmission[] }>(`/submissions?${params.toString()}`);
-  return out.data.filter((s) => (s.name ?? "").startsWith(SUBMISSION_PREFIX) && !s.archived_at);
+  return out.data.filter((s) => isOurSubmissionName(s.name) && !s.archived_at);
 }
 
 export async function getSubmitterBySlug(slug: string): Promise<DsSubmitter | null> {
@@ -142,7 +154,7 @@ export async function getSubmitterBySlug(slug: string): Promise<DsSubmitter | nu
   // Only serve signers that belong to a consignment agreement.
   if (!found || found.slug !== slug) return null;
   const kind = found.metadata?.kind;
-  return kind === "consignor" || kind === "company" ? found : null;
+  return kind === "party" || kind === "consignor" || kind === "company" ? found : null;
 }
 
 export async function listSubmittersForSubmission(submissionId: number): Promise<DsSubmitter[]> {
@@ -169,17 +181,33 @@ export function signPageUrl(slug: string): string {
   return `${env.appUrl()}/sign/${encodeURIComponent(slug)}`;
 }
 
-export function readSummary(s: DsSubmitter): Partial<AgreementSummary> {
+export function readSummary(s: DsSubmitter): Partial<DocSummary> {
   const m = s.metadata ?? {};
-  const pick = (k: keyof AgreementSummary) => (typeof m[k] === "string" ? (m[k] as string) : undefined);
+  const str = (k: string) => (typeof m[k] === "string" ? (m[k] as string) : undefined);
+  let facts: [string, string][] = [];
+  try {
+    const parsed = typeof m.facts === "string" ? JSON.parse(m.facts) : m.facts;
+    if (Array.isArray(parsed)) facts = parsed.filter((f) => Array.isArray(f) && f.length === 2).map((f) => [String(f[0]), String(f[1])]);
+  } catch {
+    facts = [];
+  }
+  // Consignment agreements made before purchases existed kept these three separately.
+  if (!facts.length) {
+    const old: [string, string | undefined][] = [
+      ["Commission", str("commission")],
+      ["Initial period", str("period")],
+      ["Insured value", str("insured")],
+    ];
+    facts = old.filter((f): f is [string, string] => Boolean(f[1]));
+  }
+  const docType = str("docType");
   return {
-    ref: pick("ref"),
-    consignorName: pick("consignorName"),
-    firstName: pick("firstName"),
-    watch: pick("watch"),
-    commission: pick("commission"),
-    period: pick("period"),
-    insured: pick("insured"),
-    presigned: pick("presigned"),
+    ref: str("ref"),
+    docType: isDocType(docType) ? docType : "consignment",
+    consignorName: str("consignorName"),
+    firstName: str("firstName"),
+    watch: str("watch"),
+    facts,
+    presigned: str("presigned"),
   };
 }

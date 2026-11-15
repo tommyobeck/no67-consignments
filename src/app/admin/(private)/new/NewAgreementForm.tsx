@@ -9,7 +9,7 @@ import {
   type CommissionBasis,
   type CompanySigner,
 } from "@/lib/agreement.ts";
-import { createAgreement, type CreateState } from "../actions.ts";
+import { createDocument, type CreateState } from "../actions.ts";
 
 type ItemDraft = {
   make: string;
@@ -43,7 +43,7 @@ const BASES: { id: CommissionBasis; label: string }[] = [
 ];
 
 export function NewAgreementForm({ signer }: { signer: CompanySigner }) {
-  const [state, action, pending] = useActionState<CreateState, FormData>(createAgreement, {});
+  const [state, action, pending] = useActionState<CreateState, FormData>(createDocument, {});
 
   const [ctype, setCtype] = useState<"individual" | "company">("individual");
   const [consignor, setConsignor] = useState({ name: "", signatoryName: "", signatoryRole: "", email: "", phone: "", address: "" });
@@ -122,6 +122,7 @@ export function NewAgreementForm({ signer }: { signer: CompanySigner }) {
 
   return (
     <form action={action} style={{ display: "flex", flexDirection: "column", gap: 36 }} noValidate>
+      <input type="hidden" name="docType" value="consignment" />
       <input type="hidden" name="payload" value={JSON.stringify(payload)} />
 
       {state.formError && <div className="notice error" role="alert">{state.formError}</div>}

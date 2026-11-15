@@ -118,7 +118,7 @@ with sync_playwright() as p:
     page.goto(f"{APP}/admin/agreements/{sub_id}")
     check("countersign button appears", page.locator("text=Countersign now").count() == 1)
     page.goto(f"{APP}/sign/{kslug}")
-    check("company signing page loads when logged in", "Countersign the agreement" in page.inner_text("h1"))
+    check("company signing page loads when logged in", "Countersign the consignment agreement" in page.inner_text("h1"))
     post(f"{MOCK}/_test/complete", {"submission_id": sub_id, "role": "Company"}, {"X-Auth-Token": "t"})
     st, _ = post(f"{APP}/api/webhooks/docuseal", {"event_type": "submission.completed", "data": {"id": sub_id}}, {"X-Webhook-Secret": "whsec"})
     check("completed webhook ok", st == 200, str(st))

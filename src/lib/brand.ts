@@ -40,8 +40,52 @@ export const brand = {
 /** Role names used inside DocuSeal. Changing these breaks agreements already sent. */
 export const ROLES = {
   consignor: "Consignor",
+  seller: "Seller",
   company: "Company",
 } as const;
 
-/** Every agreement name starts with this, so the app can ignore other DocuSeal documents. */
+/** The three kinds of document the app sends. */
+export const DOC_TYPES = {
+  consignment: {
+    label: "consignment agreement",
+    title: "Consignment Form",
+    heading: "Consignment agreement",
+    namePrefix: "Consignment",
+    refPrefix: "C",
+    partyRole: ROLES.consignor,
+    partyNoun: "Consignor",
+  },
+  purchase: {
+    label: "purchase agreement",
+    title: "Purchase Agreement",
+    heading: "Purchase agreement",
+    namePrefix: "Purchase Agreement",
+    refPrefix: "P",
+    partyRole: ROLES.seller,
+    partyNoun: "Seller",
+  },
+  confirmation: {
+    label: "purchase confirmation",
+    title: "Purchase Confirmation",
+    heading: "Purchase confirmation",
+    namePrefix: "Purchase Confirmation",
+    refPrefix: "PC",
+    partyRole: ROLES.consignor,
+    partyNoun: "Consignor",
+  },
+} as const;
+
+export type DocType = keyof typeof DOC_TYPES;
+export const DOC_TYPE_KEYS = Object.keys(DOC_TYPES) as DocType[];
+
+export function isDocType(v: unknown): v is DocType {
+  return typeof v === "string" && v in DOC_TYPES;
+}
+
+/** Every document name starts with one of these, so the app can ignore other DocuSeal documents. */
+export function isOurSubmissionName(name: string | null | undefined): boolean {
+  return DOC_TYPE_KEYS.some((k) => (name ?? "").startsWith(DOC_TYPES[k].namePrefix));
+}
+
+/** Kept for agreements created before purchase documents existed. */
 export const SUBMISSION_PREFIX = "Consignment";

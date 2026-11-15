@@ -1,8 +1,8 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { env } from "@/lib/env.ts";
-import { ROLES, SUBMISSION_PREFIX } from "@/lib/brand.ts";
-import { getSubmission, listSubmittersForSubmission, readSummary, signPageUrl } from "@/lib/docuseal.ts";
+import { DOC_TYPES, ROLES, isOurSubmissionName } from "@/lib/brand.ts";
+import { getSubmission, listSubmittersForSubmission, partySigner, readSummary, signPageUrl } from "@/lib/docuseal.ts";
 import { sendCompletedCopy, sendCountersignRequest } from "@/lib/email.ts";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    if (body.event_type === "form.completed" && body.data?.role === ROLES.consignor) {
+    if (body.event_type === "form.completed" && body.data?.role && body.data.role !== ROLES.company) {
       await onConsignorSigned(Number(body.data.submission_id ?? body.data.submission?.id));
     } else if (body.event_type === "submission.completed") {
       await onCompleted(Number(body.data?.id));
@@ -52,10 +52,11 @@ export async function POST(req: NextRequest) {
 async function onConsignorSigned(submissionId: number) {
   if (!Number.isInteger(submissionId) || submissionId <= 0) return;
   const signers = await listSubmittersForSubmission(submissionId);
-  const consignor = signers.find((s) => s.role === ROLES.consignor);
+  const consignor = partySigner(signers);
   const company = signers.find((s) => s.role === ROLES.company);
   if (!consignor || !company || company.status === "completed") return;
-  if (consignor.metadata?.kind !== "consignor") return; // not one of ours
+  const kind = consignor.metadata?.kind;
+  if (kind !== "party" && kind !== "consignor") return; // not one of ours
   await sendCountersignRequest({
     to: env.companySigner().email,
     summary: readSummary(consignor),
@@ -67,8 +68,8 @@ async function onConsignorSigned(submissionId: number) {
 async function onCompleted(submissionId: number) {
   if (!Number.isInteger(submissionId) || submissionId <= 0) return;
   const sub = await getSubmission(submissionId);
-  if (!(sub.name ?? "").startsWith(SUBMISSION_PREFIX)) return;
-  const consignor = sub.submitters.find((s) => s.role === ROLES.consignor);
+  if (!isOurSubmissionName(sub.name)) return;
+  const consignor = partySigner(sub.submitters);
   if (!consignor) return;
   const summary = readSummary(consignor);
 
@@ -80,7 +81,7 @@ async function onCompleted(submissionId: number) {
       if (res.ok) {
         const buf = Buffer.from(await res.arrayBuffer());
         if (buf.length < 30 * 1024 * 1024) {
-          pdf = { filename: `Consignment ${summary.ref ?? submissionId} (signed).pdf`, base64: buf.toString("base64") };
+          pdf = { filename: `${DOC_TYPES[summary.docType ?? "consignment"].title} ${summary.ref ?? submissionId} (signed).pdf`, base64: buf.toString("base64") };
         }
       }
     } catch (err) {

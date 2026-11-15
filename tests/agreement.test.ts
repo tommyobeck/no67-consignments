@@ -84,7 +84,8 @@ test("summary and reference", () => {
   const s = summarise(a, "C-1");
   assert.equal(s.firstName, "James");
   assert.equal(s.watch, "Rolex Datejust 36, ref. 16234");
-  assert.equal(s.insured, "£8,500");
-  assert.match(makeReference(new Date("2026-11-14T10:00:00Z")), /^C-261114-[A-Z2-9]{4}$/);
+  assert.deepEqual(s.facts.find((f) => f[0] === "Insured value"), ["Insured value", "£8,500"]);
+  assert.equal(s.docType, "consignment");
+  assert.match(makeReference("consignment", new Date("2026-11-14T10:00:00Z")), /^C-261114-[A-Z2-9]{4}$/);
   assert.equal(escapeHtml(`a&b'`), "a&amp;b&#39;");
 });

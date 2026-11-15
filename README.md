@@ -1,6 +1,12 @@
 # No. 67 consignments
 
-Own-brand consignment agreements: you fill in a private form, the consignor signs on a page in the No. 67 style, you countersign, and both of you get the signed PDF by email. DocuSeal handles the signature, audit trail and sealed PDF behind the scenes.
+Own-brand agreements for three kinds of deal, chosen at the top of **New agreement**:
+
+- **Consignment:** the Consignment Form, which refers to the Consignment Terms on the website.
+- **Purchase:** a self-contained Purchase Agreement for watches bought outright (`src/lib/purchase.ts`).
+- **Consigned watch sold:** a short Purchase Confirmation recording the purchase under clause 2.3 of a consignment agreement (`src/lib/confirmation.ts`). Pick the signed consignment from the list to fill in the consignor.
+
+For each one: you fill in a private form, the consignor signs on a page in the No. 67 style, you countersign, and both of you get the signed PDF by email. DocuSeal handles the signature, audit trail and sealed PDF behind the scenes.
 
 ## How it works
 
@@ -22,6 +28,9 @@ The lists of agreements (Awaiting signature, Signed) are read straight from Docu
 | Name, legal details, terms version and link, defaults (commission %, period, £200 fee) | `src/lib/brand.ts` |
 | Colours and fonts | `src/app/globals.css` (and `colors` in `brand.ts` for emails) |
 | Consignment Form wording and layout | `buildAgreementHtml` in `src/lib/agreement.ts` |
+| Purchase Agreement wording | `src/lib/purchase.ts` |
+| Purchase Confirmation wording | `src/lib/confirmation.ts` |
+| Shared page style, header, signatures | `src/lib/document.ts` |
 | Commission wording for each option | `commissionWording` in `src/lib/agreement.ts` |
 | Email wording | `src/lib/email.ts` |
 

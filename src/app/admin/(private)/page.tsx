@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ROLES } from "@/lib/brand.ts";
-import { listAgreements, readSummary, type DsSubmission } from "@/lib/docuseal.ts";
+import { DOC_TYPES } from "@/lib/brand.ts";
+import { listAgreements, partySigner, readSummary, type DsSubmission } from "@/lib/docuseal.ts";
 
 export const metadata: Metadata = { title: "Agreements" };
 
@@ -11,13 +11,14 @@ function fmtDate(iso: string | null): string {
 }
 
 function waitingOn(s: DsSubmission): { label: string; tone: string } {
-  if (s.status === "completed") return { label: "Signed by both", tone: "completed" };
+  if (s.status === "completed") return { label: "Signed", tone: "completed" };
   if (s.status === "declined") return { label: "Declined", tone: "declined" };
   if (s.status === "expired") return { label: "Expired", tone: "expired" };
-  const consignor = s.submitters.find((x) => x.role === ROLES.consignor);
-  if (consignor?.status === "completed") return { label: "Ready for you to countersign", tone: "pending" };
-  if (consignor?.status === "opened") return { label: "Opened by consignor", tone: "pending" };
-  return { label: "Waiting for consignor", tone: "pending" };
+  const party = partySigner(s.submitters);
+  const noun = DOC_TYPES[(party ? readSummary(party).docType : undefined) ?? "consignment"].partyNoun.toLowerCase();
+  if (party?.status === "completed") return { label: "Ready for you to countersign", tone: "pending" };
+  if (party?.status === "opened") return { label: `Opened by ${noun}`, tone: "pending" };
+  return { label: `Waiting for ${noun}`, tone: "pending" };
 }
 
 export default async function AgreementsPage({ searchParams }: { searchParams: Promise<{ view?: string; cancelled?: string }> }) {
@@ -45,12 +46,13 @@ export default async function AgreementsPage({ searchParams }: { searchParams: P
 
       <div className="table-wrap">
         {rows.length === 0 && !loadError ? (
-          <div className="empty">{signed ? "No signed agreements yet." : "Nothing waiting for a signature."}</div>
+          <div className="empty">{signed ? "Nothing signed yet." : "Nothing waiting for a signature."}</div>
         ) : (
           <table className="list">
             <thead>
               <tr>
-                <th>Consignor</th>
+                <th>Name</th>
+                <th>Type</th>
                 <th>Watch</th>
                 <th>Status</th>
                 <th>{signed ? "Completed" : "Sent"}</th>
@@ -58,7 +60,7 @@ export default async function AgreementsPage({ searchParams }: { searchParams: P
             </thead>
             <tbody>
               {rows.map((s) => {
-                const consignor = s.submitters.find((x) => x.role === ROLES.consignor);
+                const consignor = partySigner(s.submitters);
                 const sum = consignor ? readSummary(consignor) : {};
                 const st = waitingOn(s);
                 return (
@@ -67,6 +69,7 @@ export default async function AgreementsPage({ searchParams }: { searchParams: P
                       <Link href={`/admin/agreements/${s.id}`}>{sum.consignorName ?? consignor?.name ?? s.name}</Link>
                       <div className="fine">{sum.ref}</div>
                     </td>
+                    <td style={{ whiteSpace: "nowrap" }}>{DOC_TYPES[sum.docType ?? "consignment"].heading}</td>
                     <td>{sum.watch ?? ""}</td>
                     <td>
                       <span className={`status ${st.tone}`}>{st.label}</span>

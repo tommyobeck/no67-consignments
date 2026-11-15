@@ -116,3 +116,8 @@ table.list tr:last-child td { border-bottom: none; }
   .kv dd { margin-bottom: 10px; }
   .preview-frame { height: 640px; }
 }
+
+/* Type chooser on the New agreement page (links styled as pills) */
+a.pill[aria-current="page"] { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+a.pill:hover { color: var(--ink); border-color: var(--ink); }
+a.pill[aria-current="page"]:hover { color: var(--ground); }
