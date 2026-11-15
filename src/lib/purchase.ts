@@ -74,7 +74,7 @@ export function summarisePurchase(p: Purchase, ref: string): DocSummary {
     watch: watchSummary(p.items),
     facts: [
       ["Price", formatMoney(purchaseTotal(p))],
-      ["Delivery", p.delivery === "seller" ? "You bring it to 67 Farringdon Road" : "We collect by insured courier"],
+      ["Delivery", p.delivery === "seller" ? "Drop off to 67 Farringdon Road" : "We collect by insured courier"],
       ["Payment", p.acceptance === "inspect" ? "Within 3 business days of acceptance" : "Within 3 business days of signing"],
     ],
   };
